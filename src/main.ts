@@ -6,12 +6,18 @@ import {
   SwaggerDocumentOptions,
 } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    cors: {
-      origin: '*',
-    },
+  const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+  const port = +configService.get('PORT');
+
+  app.enableCors({
+    origin: [
+      configService.get('CLIENT_ORIGIN'),
+      // new RegExp(`/^http:\/\/192\.168\.1\.([1-9]|[1-9]\d):${clientPort}$/`),
+    ],
   });
 
   const options: SwaggerDocumentOptions = {
@@ -33,6 +39,6 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(5000);
+  await app.listen(port);
 }
 bootstrap();
