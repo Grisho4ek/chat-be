@@ -25,7 +25,10 @@ const configService = new ConfigService();
 @WebSocketGateway({
   namespace: 'chat',
   cors: {
-    origin: [configService.get('CLIENT_ORIGIN')],
+    origin: configService
+      .get('CLIENT_ORIGINS')
+      .split(',')
+      .map((v: string) => v.trim()),
   },
 })
 export class ChatGateway
