@@ -15,8 +15,8 @@ class User implements IUser {
   phone_number?: string | undefined;
   @ApiProperty({ required: false })
   phone_verified?: boolean | undefined;
-  @ApiProperty({ required: false })
-  user_id: string | undefined;
+  @ApiProperty()
+  user_id: string;
   @ApiProperty({ required: false })
   _id?: string | undefined;
   @ApiProperty({ required: false })

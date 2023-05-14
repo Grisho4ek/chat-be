@@ -1,4 +1,4 @@
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import {
   WebSocketGateway,
   OnGatewayInit,
@@ -9,15 +9,12 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Namespace, Socket } from 'socket.io';
+import { Namespace } from 'socket.io';
 import { ChatService } from './chat.service';
 import { JwtGuard } from 'src/auth/jwt.guard';
 import { ConfigService } from '@nestjs/config';
-import { JwtPayload } from 'src/auth/types';
-
-type AuthorizedSocket = Socket & {
-  user: JwtPayload;
-};
+import { MessageDto } from './dto';
+import { GetUser } from 'src/decorators';
 
 const configService = new ConfigService();
 
@@ -44,27 +41,38 @@ export class ChatGateway
     this.logger.log(`Websocket Gateway initialized.`);
   }
 
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+    }),
+  )
   @SubscribeMessage('message')
-  handleMessage(
-    @MessageBody() data: string,
-    @ConnectedSocket()
-    client: AuthorizedSocket,
-  ) {
-    this.logger.log(data);
-    this.logger.debug(`Recived message from ${client.user.sub}`);
+  handleMessage(@MessageBody() data: MessageDto, @GetUser('sub') user_id) {
+    console.log('user_id', user_id);
+    this.chatService
+      .createMessage({ ...data, to: data.to || 'all' })
+      .then((msg) => {
+        if (msg.to === 'all') {
+          return this.io.emit('message', msg);
+        }
+        this.io.to(user_id).emit('message', msg);
+        this.io.to(msg.to).emit('message', msg);
+      })
+      .catch((err) => {
+        this.logger.error(err);
+      });
   }
 
-  handleConnection(client: AuthorizedSocket) {
-    this.logger.debug(`Socket connected with: ${client.id}`);
-    this.io.emit('hello', 'hello');
-    this.logger.log(`WS Client with id:${client.id} disconnected!`);
-    this.logger.debug(`Number of connected sockets: ${this.io.sockets.size}`);
+  @SubscribeMessage('init')
+  handleInit(@ConnectedSocket() socket, @GetUser('sub') user_id) {
+    socket.join(user_id);
   }
 
-  handleDisconnect(client: Socket) {
-    const sockets = this.io.sockets;
+  handleConnection(@ConnectedSocket() socket) {
+    this.logger.debug(`Socket connected with: ${socket.id}`);
+  }
 
-    this.logger.log(`WS Client with id:${client.id} disconnected!`);
-    this.logger.debug(`Number of connected sockets: ${sockets.size}`);
+  handleDisconnect(@ConnectedSocket() socket) {
+    this.logger.debug(`Socket disconnected: ${socket.id}`);
   }
 }
