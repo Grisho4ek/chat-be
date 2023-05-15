@@ -18,9 +18,7 @@ export class Message {
   user_id: string;
 
   @ApiProperty()
-  @Column({
-    nullable: true,
-  })
+  @Column()
   to: string;
 
   @ApiProperty()
